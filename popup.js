@@ -8,6 +8,7 @@ const pageStatus = document.getElementById('pageStatus');
 const startBtn = document.getElementById('startBtn');
 const stopBtn = document.getElementById('stopBtn');
 const intervalInput = document.getElementById('intervalInput');
+const unitSelect = document.getElementById('unitSelect');
 const autoStartToggle = document.getElementById('autoStartToggle');
 const logBox = document.getElementById('logBox');
 const lastClick = document.getElementById('lastClick');
@@ -97,13 +98,25 @@ async function pollStatus() {
   }
 }
 
+// 단위 변경 시 입력 범위 조정
+unitSelect.addEventListener('change', () => {
+  const isMin = unitSelect.value === 'min';
+  intervalInput.max = isMin ? 999 : 99;
+  const current = parseInt(intervalInput.value) || 1;
+  if (!isMin && current > 99) intervalInput.value = 99;
+  chrome.storage.local.set({ intervalUnit: unitSelect.value });
+});
+
 // 시작 버튼
 startBtn.addEventListener('click', async () => {
-  const interval = parseInt(intervalInput.value) || 3;
-  const response = await sendToContent('START_MONITORING', { interval });
+  const raw = parseInt(intervalInput.value) || 3;
+  const isMin = unitSelect.value === 'min';
+  const intervalSec = isMin ? raw * 60 : raw;
+  const label = isMin ? `${raw}분` : `${raw}초`;
+  const response = await sendToContent('START_MONITORING', { interval: intervalSec });
   if (response && response.success) {
     setMonitoringUI(true);
-    addLog(`모니터링 시작 (${interval}초 간격)`, 'success');
+    addLog(`모니터링 시작 (${label} 간격)`, 'success');
   } else {
     addLog('오류: Runway 페이지에서 실행해주세요', 'warn');
   }
@@ -126,7 +139,9 @@ autoStartToggle.addEventListener('change', () => {
 
 // 간격 변경 저장
 intervalInput.addEventListener('change', () => {
-  const val = Math.max(1, Math.min(60, parseInt(intervalInput.value) || 3));
+  const isMin = unitSelect.value === 'min';
+  const max = isMin ? 999 : 99;
+  const val = Math.max(1, Math.min(max, parseInt(intervalInput.value) || 3));
   intervalInput.value = val;
   chrome.storage.local.set({ interval: val });
 });
@@ -150,9 +165,13 @@ chrome.runtime.onMessage.addListener((message) => {
 // 초기화
 async function init() {
   // 저장된 설정 불러오기
-  chrome.storage.local.get(['autoStart', 'interval'], (data) => {
+  chrome.storage.local.get(['autoStart', 'interval', 'intervalUnit'], (data) => {
     autoStartToggle.checked = data.autoStart || false;
     intervalInput.value = data.interval || 3;
+    if (data.intervalUnit) {
+      unitSelect.value = data.intervalUnit;
+      intervalInput.max = data.intervalUnit === 'min' ? 999 : 99;
+    }
   });
 
   await pollStatus();

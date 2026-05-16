@@ -6,7 +6,9 @@
   "permissions": [
     "notifications",
     "alarms",
-    "storage"
+    "storage",
+    "debugger",
+    "tabs"
   ],
   "host_permissions": [
     "https://app.runwayml.com/*"

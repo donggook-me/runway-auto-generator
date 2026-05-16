@@ -5,7 +5,7 @@ let isMonitoring = false;
 let observer = null;
 let checkInterval = null;
 let lastClickTime = 0;
-const MIN_CLICK_INTERVAL = 5000; // 최소 5초 간격으로 클릭
+const MIN_CLICK_INTERVAL = 8000; // 최소 8초 간격 (랜덤 지터 포함)
 
 // Generate 버튼 찾기
 function findGenerateButton() {
@@ -39,26 +39,37 @@ function isButtonEnabled(btn) {
          ariaDisabled !== 'true';
 }
 
-// 버튼 클릭 실행
+// 버튼 클릭 실행 — background의 Debugger API를 통해 isTrusted: true 실제 클릭
 function clickGenerateButton(btn) {
   const now = Date.now();
-  if (now - lastClickTime < MIN_CLICK_INTERVAL) {
-    console.log('[RunwayAuto] 너무 빠른 재클릭 방지 - 스킵');
+  const jitter = Math.random() * 3000;
+  if (now - lastClickTime < MIN_CLICK_INTERVAL + jitter) {
     return false;
   }
   lastClickTime = now;
 
-  console.log('[RunwayAuto] Generate 버튼 클릭!', new Date().toLocaleTimeString());
-  btn.click();
+  const rect = btn.getBoundingClientRect();
+  // 뷰포트 기준 → 페이지 절대 좌표 (CDP Input 이벤트는 절대 좌표 사용)
+  const x = rect.left + rect.width / 2 + window.scrollX;
+  const y = rect.top + rect.height / 2 + window.scrollY;
 
-  // 팝업 UI에 상태 전달
-  chrome.runtime.sendMessage({
-    type: 'BUTTON_CLICKED',
-    time: new Date().toLocaleTimeString()
-  });
+  // 100~500ms 랜덤 딜레이 후 background에 debugger 클릭 요청
+  const preDelay = Math.floor(Math.random() * 400) + 100;
+  setTimeout(() => {
+    chrome.runtime.sendMessage(
+      { type: 'DEBUGGER_CLICK', tabId: null, x, y },
+      (res) => {
+        if (res && res.success) {
+          chrome.runtime.sendMessage({
+            type: 'BUTTON_CLICKED',
+            time: new Date().toLocaleTimeString()
+          });
+          chrome.runtime.sendMessage({ type: 'NOTIFY_CLICK' });
+        }
+      }
+    );
+  }, preDelay);
 
-  // 데스크탑 알림
-  chrome.runtime.sendMessage({ type: 'NOTIFY_CLICK' });
   return true;
 }
 
@@ -70,7 +81,6 @@ function startObserver(btn) {
     for (const mutation of mutations) {
       if (mutation.type === 'attributes') {
         if (isButtonEnabled(btn)) {
-          console.log('[RunwayAuto] 버튼 활성화 감지! (MutationObserver)');
           clickGenerateButton(btn);
         }
       }
