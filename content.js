@@ -49,9 +49,9 @@ function clickGenerateButton(btn) {
   lastClickTime = now;
 
   const rect = btn.getBoundingClientRect();
-  // 뷰포트 기준 → 페이지 절대 좌표 (CDP Input 이벤트는 절대 좌표 사용)
-  const x = rect.left + rect.width / 2 + window.scrollX;
-  const y = rect.top + rect.height / 2 + window.scrollY;
+  // CDP Input.dispatchMouseEvent는 뷰포트 좌표 사용 — scrollX/Y 더하면 안 됨
+  const x = rect.left + rect.width / 2;
+  const y = rect.top + rect.height / 2;
 
   // 100~500ms 랜덤 딜레이 후 background에 debugger 클릭 요청
   const preDelay = Math.floor(Math.random() * 400) + 100;
