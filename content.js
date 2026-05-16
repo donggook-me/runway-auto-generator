@@ -48,16 +48,12 @@ function clickGenerateButton(btn) {
   }
   lastClickTime = now;
 
-  const rect = btn.getBoundingClientRect();
-  // CDP Input.dispatchMouseEvent는 뷰포트 좌표 사용 — scrollX/Y 더하면 안 됨
-  const x = rect.left + rect.width / 2;
-  const y = rect.top + rect.height / 2;
-
-  // 100~500ms 랜덤 딜레이 후 background에 debugger 클릭 요청
-  const preDelay = Math.floor(Math.random() * 400) + 100;
+  // 100~400ms 랜덤 딜레이 후 background에 debugger 클릭 요청
+  // 좌표는 background의 CDP Runtime.evaluate가 직접 계산 (zoom/resize 무관)
+  const preDelay = Math.floor(Math.random() * 300) + 100;
   setTimeout(() => {
     chrome.runtime.sendMessage(
-      { type: 'DEBUGGER_CLICK', tabId: null, x, y },
+      { type: 'DEBUGGER_CLICK' },
       (res) => {
         if (res && res.success) {
           chrome.runtime.sendMessage({
